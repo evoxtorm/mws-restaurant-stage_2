@@ -1,67 +1,112 @@
-const staticCacheName = 'restrev-v1';
-const repository = '/mws-restaurant-stage-1';
+let staticCacheName = 'restaurant-static-v2'
+var contentImgsCache = 'restaurant-content-imgs';
+var allCaches = [
+  staticCacheName,
+  contentImgsCache
+];
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
-    caches.open(staticCacheName).then(function (cache) {
-      return cache.addAll([
-        `${repository}/`,
-        `${repository}/index.html`,
-        `${repository}/sw.js`,
-        `${repository}/css/styles.css`,
-        `${repository}/css/responsive.css`,
-        `${repository}/js/main.js`,
-        `${repository}/js/dbhelper.js`,
-        `${repository}/js/restaurant_info.js`,
-        `${repository}/data/restaurants.json`,
-        `${repository}/img/1.jpg`,
-        `${repository}/img/2.jpg`,
-        `${repository}/img/3.jpg`,
-        `${repository}/img/4.jpg`,
-        `${repository}/img/5.jpg`,
-        `${repository}/img/6.jpg`,
-        `${repository}/img/7.jpg`,
-        `${repository}/img/8.jpg`,
-        `${repository}/img/9.jpg`,
-        `${repository}/img/10.jpg`,
-      ]);
-    })
+    caches.open(staticCacheName)
+      .then(cache => cache.addAll([
+        '/',
+        '/index.html',
+        '/restaurant.html',
+        '/css/styles.css',
+        'css/responsive.css'
+        '/js/dbhelper.js',
+        '/js/main.js',
+        '/js/restaurant_info.js',
+        '/node_modules/idb/lib/idb.js',
+        '/img/icon_144.png',
+        '/img/icon_192.png',
+        '/img/icon_512.png',
+        '/img/1.jpg',
+        '/img/2.jpg',
+        '/img/3.jpg',
+        '/img/4.jpg',
+        '/img/5.jpg',
+        '/img/6.jpg',
+        '/img/7.jpg',
+        '/img/8.jpg',
+        '/img/9.jpg',
+        '/img/10.jpg',
+        '/img/default.jpg',
+      ]))
   );
 });
 
 self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then(function(cacheNames) {
+    caches.keys().then(function (cacheNames) {
       return Promise.all(
-        cacheNames.filter(function(cacheName) {
-          return cacheName.startsWith('restrev-') && cacheName != staticCacheName;
-        }).map(function(cacheName) {
-          return cache.delete(cacheName);
+        cacheNames.filter(function (cacheName) {
+          return cacheName.startsWith('restaurant-') &&
+            !allCaches.includes(cacheName);
+        }).map(function (cacheName) {
+          return caches.delete(cacheName);
         })
       );
     })
   );
 });
 
-self.addEventListener('fetch', function(event) {
+
+
+self.addEventListener('fetch', function (event) {
+
+  var requestUrl = new URL(event.request.url);
+
+  if (requestUrl.pathname.startsWith('/img/')) {
+    event.respondWith(servePhoto(event.request));
+    return;
+  }
+
+  //there is a query behind the /restaurant.html so it's not in the cache
+  if (requestUrl.pathname.startsWith('/restaurant.html')) {
+    event.respondWith(serveRestaurantDetail());
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then(function(response) {
+    caches.match(event.request).then(response => {
+
       if (response) {
         return response;
-      } else {
-        return fetch(event.request).then(function(response) {
-          let responseClone = response.clone();
-          caches.open(staticCacheName).then(function(cache) {
-            cache.put(event.request, responseClone);
-          });
-          return response;
-        }).catch(function() {
-          return new Response('<h1>Connection error!</h1>'
-            + '<p>Sorry, Information is not available. Check your Internet coonnection!</p>', {
-            headers: {'Content-Type': 'text/html'}
-          });
-        })
       }
+      return fetch(event.request).then(networkResponse => {
+        return caches.open(staticCacheName).then(cache => {
+          cache.put(event.request.url, networkResponse.clone());
+          return networkResponse;
+        })
+      })
     })
-  )
+  );
 });
+
+function serveRestaurantDetail() {
+  return caches.open(staticCacheName).then(function (cache) {
+    return cache.match('/restaurant.html').then(function (response) {
+      if (response) return response;
+
+      return fetch(request).then(function (networkResponse) {
+        cache.put(storageUrl, networkResponse.clone());
+        return networkResponse;
+      });
+    });
+  });
+}
+function servePhoto(request) {
+  var storageUrl = request.url.replace(/-\d+px\.jpg$/, '');
+
+  return caches.open(contentImgsCache).then(function (cache) {
+    return cache.match(storageUrl).then(function (response) {
+      if (response) return response;
+
+      return fetch(request).then(function (networkResponse) {
+        cache.put(storageUrl, networkResponse.clone());
+        return networkResponse;
+      });
+    });
+  });
+}

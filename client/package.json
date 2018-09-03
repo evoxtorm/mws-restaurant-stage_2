@@ -1,14 +1,16 @@
 {
-  "name": "mws-restaurant-stage1",
+  "name": "restaurant_reviews",
   "version": "1.0.0",
-  "description": "Udacity nanodegree ",
-  "main": "main.js",
+  "description": "Restaurant Stage 2",
+  "main": "",
   "scripts": {
-    "start": "python -m SimpleHTTPServer 8000"
+    "start": "python3 -m http.server 8003"
   },
-  "author": "evoxtorm",
+  "author": "",
   "license": "ISC",
+  "private": true,
+  "devDependencies": {},
   "dependencies": {
-    "http-server": "^0.11.1"
+    "idb": "^2.1.1"
   }
 }

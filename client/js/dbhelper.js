@@ -4,48 +4,128 @@
 class DBHelper {
 
   /**
-   * Database URL.
-   * Change this to restaurants.json file location on your server.
+   * API URL.
+   * Server Address to make API request.
    */
-  static get DATABASE_URL() {
-    const port = 8000 // Change this to your server port
-    return `http://localhost:${port}/data/restaurants.json`;
+  static get API_URL() {
+    const port = 1337 // Change this to your server port
+    return `http://localhost:${port}/restaurants`;
+  }
+
+  static openDatabase() {
+    // If the browser doesn't support service worker,
+    // we don't care about having a database
+    if (!navigator.serviceWorker) {
+      return Promise.resolve();
+    }
+
+    return idb.open('restaurants', 1, function (upgradeDb) {
+      var store = upgradeDb.createObjectStore('restaurants', {
+        keyPath: 'id'
+      });
+    });
+  }
+
+  /**
+   * Fetch all restaurants from indexDB.
+   */
+  static getRestaurantsFromIDB() {
+    var dbPromise = this.openDatabase();
+    return dbPromise.then((db) => {
+      var tx = db.transaction('restaurants');
+      var restaurantStore = tx.objectStore('restaurants');
+      var gal = restaurantStore.getAll();
+      return gal;
+    })
+  }
+
+  /**
+   * Fetch restaurant from indexDB by id.
+   */
+  static getRestaurantsByIdFromIDB(restaurantId) {
+    var dbPromise = this.openDatabase();
+    return dbPromise.then((db) => {
+      var tx = db.transaction('restaurants');
+      var restaurantStore = tx.objectStore('restaurants');
+      var gal = restaurantStore.get(restaurantId);
+      return gal;
+      
+    })
+  }
+
+  /**
+   * Insert all restaurants to indexDB.
+   */
+  static saveRestaurantsToIDB(restaurants) {
+    var dbPromise = this.openDatabase();
+    return dbPromise.then((db) => {
+      var tx = db.transaction('restaurants', 'readwrite');
+      var restaurantStore = tx.objectStore('restaurants');
+      restaurants.forEach(restaurant => {
+        restaurantStore.put(restaurant);
+      })
+    })
   }
 
   /**
    * Fetch all restaurants.
    */
   static fetchRestaurants(callback) {
-    let xhr = new XMLHttpRequest();
-    xhr.open('GET', DBHelper.DATABASE_URL);
-    xhr.onload = () => {
-      if (xhr.status === 200) { // Got a success response from server!
-        const json = JSON.parse(xhr.responseText);
-        const restaurants = json.restaurants;
+    this.getRestaurantsFromIDB().then((restaurants) => {
+      if (restaurants.length === 0) {
+        fetch(this.API_URL, { credentials: 'same-origin' }).then((response) => {
+          return response.json()
+        }).then((restaurants) => {
+          this.saveRestaurantsToIDB(restaurants);
+          callback(null, restaurants);
+        }).catch(error => {
+          callback(error);
+        })
+      } else {
         callback(null, restaurants);
-      } else { // Oops!. Got an error from server.
-        const error = (`Request failed. Returned status of ${xhr.status}`);
-        callback(error, null);
       }
-    };
-    xhr.send();
+    })
+
+
+
   }
 
   /**
    * Fetch a restaurant by its ID.
    */
   static fetchRestaurantById(id, callback) {
-    // fetch all restaurants with proper error handling.
+
+    //getting by id cause not satisfy the progressive web
+
+
+    // this.getRestaurantsByIdFromIDB(id).then((restaurant) => {
+    //   if (!restaurant) {
+    //     fetch(`${this.API_URL}/${id}`).then((response) => {
+    //       return response.json()
+    //     }).then((restaurant) => {
+    //       callback(null, restaurant);
+    //     }).catch(error => {
+    //       callback(error);
+    //     })
+    //   } else {
+    //     callback(null, restaurant);
+    //   }
+    // });
+
+
+    //move to get all restaurants from api
     DBHelper.fetchRestaurants((error, restaurants) => {
       if (error) {
         callback(error, null);
       } else {
-        const restaurant = restaurants.find(r => r.id == id);
-        if (restaurant) { // Got the restaurant
-          callback(null, restaurant);
-        } else { // Restaurant does not exist in the database
-          callback('Restaurant does not exist', null);
-        }
+        var restaurant = restaurants.find(x => x.id === id);
+
+        //in case restaurant id is not correct
+        if (!restaurant) { 
+					callback("Restaurant id is not valid", null);
+				} else {
+					callback(null, restaurant);
+				}
       }
     });
   }
@@ -150,7 +230,9 @@ class DBHelper {
    * Restaurant image URL.
    */
   static imageUrlForRestaurant(restaurant) {
-    return (`/img/${restaurant.photograph}`);
+    if (restaurant.photograph)
+      return (`/img/${restaurant.photograph}.jpg`);
+    return (`/img/default.jpg`);
   }
 
   /**
@@ -162,7 +244,8 @@ class DBHelper {
       title: restaurant.name,
       url: DBHelper.urlForRestaurant(restaurant),
       map: map,
-      animation: google.maps.Animation.DROP}
+      animation: google.maps.Animation.DROP
+    }
     );
     return marker;
   }
