@@ -17,6 +17,7 @@ Clone this server repository.
 #### Start the app 
 
 1. Go to folder 'client'
-2. Run with `python -m SimpleHTTPServer 8000`  or python3 -m http.server 8000`
-3. Open in browser `http://localhost:8000`
+2. Run `npm install`
+3. Run with `python -m SimpleHTTPServer 8000`  or python3 -m http.server 8000`
+4. Open in browser `http://localhost:8000`
 
